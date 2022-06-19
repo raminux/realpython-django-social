@@ -519,6 +519,83 @@ admin.site.register(Dweet)
 {% endblock content %}
 ```
 
+## Submit Dweets Using Django Forms
+1. Create a TextInput form
+```python
+# dwitter/forms.py
+
+from django import forms
+from .models import Dweet
+
+class DweetForm(forms.ModelForm):
+    body = forms.CharField(
+        required=True, 
+        widget=forms.widgets.Textarea(
+            attrs={
+                "placeholder": "Dweet something...",
+                "class": "textarea is-success is-medium",
+            }
+        ),
+        label="",
+        )
+
+    class Meta:
+        model = Dweet
+        exclude = ("user", )
+```
+
+2. Render the form in the template
+```python
+# dwitter/views.py
+
+from django.shortcuts import render
+from .forms import DweetForm
+from .models import Profile
+
+def dashboard(request):
+    if request.method == "POST":
+        form = DweetForm(request.POST or None)
+        if form.is_valid():
+            dweet = form.save(commit=False)
+            dweet.user = request.user
+            dweet.save()
+            return redirect("dwitter:dashboard")
+    return render(request, "dwitter/dashboard.html", {"form": form})
+```
+
+3. Add template codes
+```html 
+<!-- dwitter/dashboard.html -->
+<div class="column is-one-third">
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="button is-success is-fullwidth is-medium mt-5"
+                type="submit">Dweet
+        </button>
+    </form>
+</div>
+```
+
+## Improve the Front-End User Experience
+1. Add this to the `dashboard.html` file
+```html
+<div class="block">
+    <a href="{% url 'dwitter:profile_list' %} ">
+        <button class="button is-dark is-outlined is-fullwidth">
+            All Profiles
+        </button>
+    </a>
+</div>
+<div class="block">
+    <a href="{% url 'dwitter:profile' request.user.profile.id %} ">
+        <button class="button is-success is-light is-outlined is-fullwidth">
+            My Profile
+        </button>
+    </a>
+</div>
+```
+
 
 
 

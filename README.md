@@ -399,6 +399,125 @@ and of course, we need to create a template for profile representation
 {% endblock content %}
 ```
 
+## Follow and Unfollow Other Profiles
+1. Add buttons to the template
+```html
+<!-- dwitter/profile.html -->
+
+<form method="post">
+    {% csrf_token %}
+    <div class="buttons has-addons">
+    {% if profile in user.profile.follows.all %}
+        <button class="button is-success is-static">Follow</button>
+        <button class="button is-danger" name="follow" value="unfollow">
+            Unfollow
+        </button>
+    {% else %}
+        <button class="button is-success" name="follow" value="follow">
+            Follow
+        </button>
+        <button class="button is-danger is-static">Unfollow</button>
+    {% endif %}
+    </div>
+</form>
+```
+2. Add the logic to the `views.py` file
+```python
+# dwitter/views.py
+
+# ...
+
+def profile(request, pk):
+    if not hasattr(request.user, 'profile'):
+        missing_profile = Profile(user=request.user)
+        missing_profile.save()
+
+    profile = Profile.objects.get(pk=pk)
+    if request.method == "POST":
+        current_user_profile = request.user.profile
+        data = request.POST
+        action = data.get("follow")
+        if action == "follow":
+            current_user_profile.follows.add(profile)
+        elif action == "unfollow":
+            current_user_profile.follows.remove(profile)
+        current_user_profile.save()
+    return render(request, "dwitter/profile.html", {"profile": profile})
+```
+
+## Create the Back-End Logic for Dweets
+1. Make the model
+```python
+# dwitter/models.py
+
+# ...
+
+class Dweet(models.Model):
+    user = models.ForeignKey(
+        User, related_name="dweets", on_delete=models.DO_NOTHING
+    )
+    body = models.CharField(max_length=140)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return (
+            f"{self.user} "
+            f"({self.created_at:%Y-%m-%d %H:%M}): "
+            f"{self.body[:30]}..."
+        )
+```
+2. Migrate the Dweet model
+```bash
+$> python manage.py makemigrations
+$> python manage.py migrate
+```
+3. Add Dweet to the Admin panel
+```python
+# dwitter/admin.py
+from .models import Dweet, Profile
+
+# ...
+
+admin.site.register(Dweet)
+```
+
+## Display Dweets on the Front End
+1. Show dweets on profile page
+```html
+<div class="content">
+    {% for dweet in profile.user.dweets.all %}
+        <div class="box">
+            {{ dweet.body }}
+            <span class="is-small has-text-grey-light">
+                ({{ dweet.created_at }})
+            </span>
+        </div>
+    {% endfor %}
+</div>
+```
+
+## Create a Dashboard View
+1. Add this code to the `dashboard.html`
+```html
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="column">
+    {% for followed in user.profile.follows.all %}
+        {% for dweet in followed.user.dweets.all %}
+            <div class="box">
+                {{ dweet.body }}
+                <span class="is-small has-text-grey-light">
+                    ({{ dweet.created_at }} by {{ dweet.user.username }}
+                </span>
+            </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+{% endblock content %}
+```
 
 
 

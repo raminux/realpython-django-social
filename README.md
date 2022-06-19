@@ -163,6 +163,248 @@ def create_profile(sender, instance, created, **kwargs):
 # Remove: post_save.connect(create_profile, sender=User)
 ```
 
+## Create a Base Template With Bulma CSS Framework
+First create a directory named `templates` and add `base.html` in it as
+```bash
+$> mkdir templates
+$> touch templates/base.html
+```
+The content of `base.html` is as
+```html
+<!-- templates/base.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+     <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <title>Dwitter</title>
+</head>
+<body>
+    <section class="hero is-small is-success mb-4">
+        <div class="hero-body">
+            <h1 class="title is-1">Dwitter</h1>
+            <p class="subtitle is-4">
+                Your tiny social network built with Django
+            </p>
+        </div>
+    </section>
+
+    <div class="container">
+        <div class="columns">
+
+            {% block content %}
+
+            {% endblock content %}
+
+        </div>
+    </div>
+</body>
+</html>
+```
+
+## View Your Base Template
+To veiw a specific page, we need to define routes to them. Start by adding routes of the dwitter application to the main routes of the project as below
+```python
+# config/urls.py
+
+from django.contrib import admin
+from django.urls import path, include
+
+urlpatterns = [
+    path("", include("dwitter.urls")),
+    path("admin/", admin.site.urls),
+]
+```
+Now, create `dwitter/urls.py` and add the routes of the application inside it
+```python
+# dwitter/urls.py
+
+from django.urls import path
+from .views import dashboard
+
+app_name = "dwitter"
+
+urlpatterns = [
+    path("", dashboard, name="dashboard"),
+]
+```
+Now, add the `dashboard` method to the `dwitter/views.py` file
+```python
+# dwitter/views.py
+
+from django.shortcuts import render
+
+def dashboard(request):
+    return render(request, "base.html")
+```
+
+## List All User Profiles on the Front End of Your Django App
+First, define the route to see all user profiles
+```python
+# dwitter/urls.py
+
+from django.urls import path
+from .views import dashboard, profile_list
+
+app_name = "dwitter"
+
+urlpatterns = [
+    path("", dashboard, name="dashboard"),
+    path("profile_list/", profile_list, name="profile_list"),
+]
+```
+Then, write the code to find profiles
+```python
+# dwitter/views.py
+
+from django.shortcuts import render
+from .models import Profile
+
+
+def profile_list(request):
+    profiles = Profile.objects.exclude(user=request.user)
+    return render(request, "dwitter/profile_list.html", {"profiles": profiles})
+```
+Next, code the `.html` file
+```html
+
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="column">
+
+{% for profile in profiles %}
+
+    <div class="block">
+      <div class="card">
+        <a href="#">
+          <div class="card-content">
+            <div class="media">
+              <div class="media-left">
+                <figure class="image is-48x48">
+                  <img src="https://bulma.io/images/placeholders/96x96.png"
+                       alt="Placeholder image">
+                </figure>
+              </div>
+              <div class="media-content">
+                <p class="title is-4">
+                  {{ profile.user.username }}
+                </p>
+                <p class="subtitle is-6">
+                  @{{ profile.user.username|lower }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+
+{% endfor %}
+
+</div>
+
+{% endblock content %}
+```
+
+## Access Individual Profile Pages
+As before, we start by adding the route
+```python
+# dwitter/urls.py
+from .views import dashboard, profile_list, profile
+
+
+urlpatterns = [
+    ...
+    path("profile/<int:pk>", profile, name="profile"),
+]
+```
+Then, write the profile view as
+```python
+# dwitter/views.py
+
+# ...
+
+def profile(request, pk):
+    profile = Profile.objects.get(pk=pk)
+    return render(request, "dwitter/profile.html", {"profile": profile})
+```
+and of course, we need to create a template for profile representation
+```html
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="column">
+
+    <div class="block">
+    <h1 class="title is-1">
+        {{profile.user.username|upper}}'s Dweets
+    </h1>
+    </div>
+
+</div>
+
+<div class="column is-one-third">
+
+    <div class="block">
+        <a href="{% url 'dwitter:profile_list' %}">
+            <button class="button is-dark is-outlined is-fullwidth">
+                All Profiles
+            </button>
+        </a>
+    </div>
+
+    <div class="block">
+        <h3 class="title is-4">
+            {{profile.user.username}} follows:
+        </h3>
+        <div class="content">
+            <ul>
+            {% for following in profile.follows.all %}
+                <li>
+                    <a href="{% url 'dwitter:profile' following.id %}">
+                        {{ following }}
+                    </a>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="block">
+        <h3 class="title is-4">
+            {{profile.user.username}} is followed by:
+        </h3>
+        <div class="content">
+            <ul>
+            {% for follower in profile.followed_by.all %}
+                <li>
+                    <a href="{% url 'dwitter:profile' follower.id %}">
+                        {{ follower }}
+                    </a>
+                </li>
+            {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+{% endblock content %}
+```
+
+
+
+
+
+
+
 
 
 
